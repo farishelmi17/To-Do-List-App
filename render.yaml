@@ -1,0 +1,13 @@
+# Optional: Render Blueprint for backend only
+# Use this if you want to add the backend via "New > Blueprint" and connect this repo.
+# Set Root Directory to backend in the dashboard if you use this.
+services:
+  - type: web
+    name: todo-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
