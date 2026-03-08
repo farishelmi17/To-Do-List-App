@@ -148,8 +148,9 @@ const db = {
     if (dbMode === 'pg') {
       const isInsert = sql.trim().toUpperCase().startsWith('INSERT');
       const hasReturning = /RETURNING\s+/i.test(sql);
+      const hasOnConflict = /ON\s+CONFLICT/i.test(sql);
       let finalSql = sql;
-      if (isInsert && !hasReturning) finalSql = sql.replace(/;\s*$/, '') + ' RETURNING id';
+      if (isInsert && !hasReturning && !hasOnConflict) finalSql = sql.replace(/;\s*$/, '') + ' RETURNING id';
       const r = await pgPool.query(toPgParams(finalSql), params);
       const lastInsertRowid = r.rows[0]?.id ?? null;
       return { lastInsertRowid, changes: r.rowCount ?? 0 };
