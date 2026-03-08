@@ -1,11 +1,25 @@
-import { useState, useEffect } from 'react';
-import TaskItem from './TaskItem.jsx';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import TaskTableRow from './TaskTableRow.jsx';
+
+function parseUpdatedAt(t) {
+  return t.updated_at ? new Date(t.updated_at.replace(' ', 'T') + (t.updated_at.endsWith('Z') ? '' : 'Z')).getTime() : 0;
+}
+
+function useDebouncedValue(value, delayMs) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export default function TaskList({ tasks, view, onToggle, onSelectTask, onAddTask, categoryId, categories = [] }) {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [addToCategoryId, setAddToCategoryId] = useState(categoryId || (categories[0]?.id ?? ''));
   const [filterCategoryId, setFilterCategoryId] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(filterSearch, 200);
 
   useEffect(() => {
     if (view === 'completed') {
@@ -17,46 +31,50 @@ export default function TaskList({ tasks, view, onToggle, onSelectTask, onAddTas
   const isTableView = view === 'completed';
   const isCategoryView = view === 'category';
   const canAdd = !!onAddTask;
-  const addTaskCategoryId = isTableView ? addToCategoryId : categoryId;
 
-  const openTasks = isCategoryView ? tasks.filter((t) => !t.completed) : [];
-  const completedTasksInCategory = isCategoryView
-    ? [...tasks.filter((t) => t.completed)].sort((a, b) => {
-        const au = a.updated_at ? new Date(a.updated_at.replace(' ', 'T') + (a.updated_at.endsWith('Z') ? '' : 'Z')).getTime() : 0;
-        const bu = b.updated_at ? new Date(b.updated_at.replace(' ', 'T') + (b.updated_at.endsWith('Z') ? '' : 'Z')).getTime() : 0;
-        return bu - au;
-      })
-    : [];
+  const openTasks = useMemo(
+    () => (isCategoryView ? tasks.filter((t) => !t.completed) : []),
+    [isCategoryView, tasks]
+  );
+  const completedTasksInCategory = useMemo(
+    () =>
+      isCategoryView
+        ? [...tasks.filter((t) => t.completed)].sort((a, b) => parseUpdatedAt(b) - parseUpdatedAt(a))
+        : [],
+    [isCategoryView, tasks]
+  );
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter((t) => {
+        const matchCategory = filterCategoryId === '' || String(t.category_id) === String(filterCategoryId);
+        const q = debouncedSearch.trim().toLowerCase();
+        const matchSearch =
+          q === '' ||
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.notes && t.notes.toLowerCase().includes(q));
+        return matchCategory && matchSearch;
+      }),
+    [tasks, filterCategoryId, debouncedSearch]
+  );
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    const title = newTaskTitle.trim();
-    if (!title || !onAddTask) return;
-    const targetCategoryId = isTableView ? addTaskCategoryId : categoryId;
-    if (!targetCategoryId) return;
-    const categoryIdArg = isCategoryView ? categoryId : (isTableView ? targetCategoryId : undefined);
-    onAddTask(title, categoryIdArg);
-    setNewTaskTitle('');
-  }
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      const title = newTaskTitle.trim();
+      if (!title || !onAddTask) return;
+      const targetCategoryId = isTableView ? addToCategoryId : categoryId;
+      if (!targetCategoryId) return;
+      const categoryIdArg = isCategoryView ? categoryId : (isTableView ? targetCategoryId : undefined);
+      onAddTask(title, categoryIdArg);
+      setNewTaskTitle('');
+    },
+    [newTaskTitle, onAddTask, isTableView, addToCategoryId, categoryId, isCategoryView]
+  );
 
   if (isTableView) {
-    const isCompletedView = view === 'completed';
-    const filteredTasks = isCompletedView
-      ? tasks.filter((t) => {
-          const matchCategory = filterCategoryId === '' || String(t.category_id) === String(filterCategoryId);
-          const q = filterSearch.trim().toLowerCase();
-          const matchSearch =
-            q === '' ||
-            (t.title && t.title.toLowerCase().includes(q)) ||
-            (t.notes && t.notes.toLowerCase().includes(q));
-          return matchCategory && matchSearch;
-        })
-      : tasks;
-
     return (
       <div className="task-list">
-        {isCompletedView && (
-          <div className="task-list-filters">
+        <div className="task-list-filters">
             <div className="task-list-filter-group">
               <label className="task-list-filter-label" htmlFor="completed-filter-category">Category</label>
               <select
@@ -87,35 +105,20 @@ export default function TaskList({ tasks, view, onToggle, onSelectTask, onAddTas
               />
             </div>
           </div>
-        )}
         <div className="task-list-table-wrap">
           <table className="task-list-table">
             <thead>
               <tr>
-                {!isCompletedView && <th className="task-table-th task-table-check"></th>}
                 <th className="task-table-th">Task</th>
                 <th className="task-table-th">Category</th>
-                {isCompletedView ? (
-                  <>
-                    <th className="task-table-th">Completed</th>
-                    <th className="task-table-th">Notes</th>
-                  </>
-                ) : (
-                  <>
-                    <th className="task-table-th">Due date</th>
-                    <th className="task-table-th">Reminder</th>
-                    <th className="task-table-th">Important</th>
-                  </>
-                )}
+                <th className="task-table-th">Completed</th>
+                <th className="task-table-th">Notes</th>
               </tr>
             </thead>
             <tbody>
               {filteredTasks.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={isCompletedView ? 4 : 6}
-                    className="task-list-empty-cell"
-                  >
+                  <td colSpan={4} className="task-list-empty-cell">
                     {tasks.length === 0
                       ? 'No completed tasks yet.'
                       : 'No completed tasks match your filters.'}
@@ -225,37 +228,5 @@ export default function TaskList({ tasks, view, onToggle, onSelectTask, onAddTas
     );
   }
 
-  return (
-    <div className="task-list">
-      {canAdd && (
-        <form className="task-list-add" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Add a task"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            className="task-list-input"
-          />
-        </form>
-      )}
-      <ul className="task-list-ul">
-        {tasks.length === 0 ? (
-          <li className="task-list-empty">
-            {!canAdd && 'Select a category to add tasks.'}
-            {canAdd && 'No tasks yet. Add one above.'}
-          </li>
-        ) : (
-          tasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={onToggle}
-              onSelect={() => onSelectTask(task.id)}
-              showListTitle={false}
-            />
-          ))
-        )}
-      </ul>
-    </div>
-  );
+  return null;
 }

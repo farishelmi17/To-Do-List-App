@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api, apiJson } from '../api/client.js';
 import TaskDetail from './TaskDetail.jsx';
 
@@ -52,7 +52,7 @@ export default function Board({ categoryCount = 0, onCategoriesChange }) {
     fetchBoard();
   }, [fetchBoard]);
 
-  const focusTaskIds = new Set((todayFocus || []).map((t) => t.id));
+  const focusTaskIds = useMemo(() => new Set((todayFocus || []).map((t) => t.id)), [todayFocus]);
 
   /** Show in Open Tasks if: not in today focus, and (incomplete OR completed today — clears after midnight like Today Focus) */
   function isShownInOpenTasks(task) {
@@ -70,134 +70,161 @@ export default function Board({ categoryCount = 0, onCategoriesChange }) {
     );
   }
 
-  async function handleAddToTodayFocus(taskId) {
-    try {
-      await apiJson('/api/board/today-focus', { method: 'POST', body: JSON.stringify({ task_id: taskId }) });
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function handleRemoveFromTodayFocus(taskId) {
-    try {
-      await api(`/api/board/today-focus/${taskId}`, { method: 'DELETE' });
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function handleAddTask(categoryId, title, fromTodaySection) {
-    const t = title.trim();
-    if (!t) return;
-    try {
-      const task = await apiJson(`/api/categories/${categoryId}/tasks`, {
-        method: 'POST',
-        body: JSON.stringify({ title: t }),
-      });
-      if (fromTodaySection) {
-        setNewTaskTitleToday('');
-        setNewTaskCategoryIdToday(null);
-      } else {
-        setNewTaskTitleOpen('');
-        setNewTaskCategoryIdOpen(null);
+  const handleAddToTodayFocus = useCallback(
+    async (taskId) => {
+      try {
+        await apiJson('/api/board/today-focus', { method: 'POST', body: JSON.stringify({ task_id: taskId }) });
+        refresh();
+      } catch (err) {
+        console.error(err);
       }
-      if (fromTodaySection && task?.id) {
-        await apiJson('/api/board/today-focus', {
+    },
+    [refresh]
+  );
+
+  const handleRemoveFromTodayFocus = useCallback(
+    async (taskId) => {
+      try {
+        await api(`/api/board/today-focus/${taskId}`, { method: 'DELETE' });
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [refresh]
+  );
+
+  const handleAddTask = useCallback(
+    async (categoryId, title, fromTodaySection) => {
+      const t = title.trim();
+      if (!t) return;
+      try {
+        const task = await apiJson(`/api/categories/${categoryId}/tasks`, {
           method: 'POST',
-          body: JSON.stringify({ task_id: task.id }),
+          body: JSON.stringify({ title: t }),
         });
+        if (fromTodaySection) {
+          setNewTaskTitleToday('');
+          setNewTaskCategoryIdToday(null);
+        } else {
+          setNewTaskTitleOpen('');
+          setNewTaskCategoryIdOpen(null);
+        }
+        if (fromTodaySection && task?.id) {
+          await apiJson('/api/board/today-focus', {
+            method: 'POST',
+            body: JSON.stringify({ task_id: task.id }),
+          });
+        }
+        refresh();
+      } catch (err) {
+        console.error(err);
       }
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+    },
+    [refresh]
+  );
 
-  async function handleToggleTask(taskId, completed) {
-    try {
-      await apiJson(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ completed }),
-      });
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const handleToggleTask = useCallback(
+    async (taskId, completed) => {
+      try {
+        await apiJson(`/api/tasks/${taskId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ completed }),
+        });
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [refresh]
+  );
 
-  async function handleUpdateTask(taskId, updates) {
-    try {
-      await apiJson(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(updates),
-      });
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const handleUpdateTask = useCallback(
+    async (taskId, updates) => {
+      try {
+        await apiJson(`/api/tasks/${taskId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(updates),
+        });
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [refresh]
+  );
 
-  async function handleDeleteTask(taskId) {
-    try {
-      await api(`/api/tasks/${taskId}`, { method: 'DELETE' });
-      setSelectedTaskId((id) => (id === taskId ? null : id));
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const handleDeleteTask = useCallback(
+    async (taskId) => {
+      try {
+        await api(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        setSelectedTaskId((id) => (id === taskId ? null : id));
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [refresh]
+  );
 
-  async function handleAddCategory(e) {
-    e.preventDefault();
-    const name = newCategoryName.trim();
-    if (!name) return;
-    try {
-      await apiJson('/api/categories', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      });
-      setNewCategoryName('');
-      setShowAddCategory(false);
-      onCategoriesChange?.();
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const handleAddCategory = useCallback(
+    async (e) => {
+      e.preventDefault();
+      const name = newCategoryName.trim();
+      if (!name) return;
+      try {
+        await apiJson('/api/categories', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        });
+        setNewCategoryName('');
+        setShowAddCategory(false);
+        onCategoriesChange?.();
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [newCategoryName, onCategoriesChange, refresh]
+  );
 
-  async function handleRenameCategory(categoryId, name) {
-    const n = name.trim();
-    if (!n) {
-      setEditingCategoryId(null);
-      return;
-    }
-    try {
-      await apiJson(`/api/categories/${categoryId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: n }),
-      });
-      setEditingCategoryId(null);
-      setEditCategoryName('');
-      onCategoriesChange?.();
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const handleRenameCategory = useCallback(
+    async (categoryId, name) => {
+      const n = name.trim();
+      if (!n) {
+        setEditingCategoryId(null);
+        return;
+      }
+      try {
+        await apiJson(`/api/categories/${categoryId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ name: n }),
+        });
+        setEditingCategoryId(null);
+        setEditCategoryName('');
+        onCategoriesChange?.();
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [onCategoriesChange, refresh]
+  );
 
-  async function handleDeleteCategory(categoryId) {
-    if (!confirm('Delete this category and all its tasks?')) return;
-    try {
-      await api(`/api/categories/${categoryId}`, { method: 'DELETE' });
-      setEditingCategoryId(null);
-      onCategoriesChange?.();
-      refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  const handleDeleteCategory = useCallback(
+    async (categoryId) => {
+      if (!confirm('Delete this category and all its tasks?')) return;
+      try {
+        await api(`/api/categories/${categoryId}`, { method: 'DELETE' });
+        setEditingCategoryId(null);
+        onCategoriesChange?.();
+        refresh();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [onCategoriesChange, refresh]
+  );
 
   function renderCategoryTitle(cat) {
     const isEditing = Number(editingCategoryId) === Number(cat.id);

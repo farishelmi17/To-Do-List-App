@@ -16,7 +16,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [categoryTitle, setCategoryTitle] = useState('');
-
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const path = location.pathname;
   const isBoardView = path === '/app' || path === '/app/';
   const currentView = path.endsWith('/completed') ? 'completed' : isBoardView ? 'board' : 'category';
@@ -26,6 +26,7 @@ export default function Dashboard() {
     try {
       const { categories: data } = await apiJson('/api/categories');
       setCategories(data);
+      setCategoriesLoaded(true);
     } catch (err) {
       console.error(err);
     }
@@ -136,6 +137,7 @@ export default function Dashboard() {
   );
 
   const showAddTask = currentView === 'category' ? !!effectiveCategoryId : false;
+  const handleCloseTaskDetail = useCallback(() => setSelectedTaskId(null), []);
 
   return (
     <div className="dashboard">
@@ -152,7 +154,11 @@ export default function Dashboard() {
             <header className="dashboard-header">
               <h1>Planning Board</h1>
             </header>
-            <Board categoryCount={categories.length} onCategoriesChange={fetchCategories} />
+            {!categoriesLoaded ? (
+              <p className="dashboard-loading">Loading…</p>
+            ) : (
+              <Board categoryCount={categories.length} onCategoriesChange={fetchCategories} />
+            )}
           </>
         ) : (
           <>
@@ -178,7 +184,7 @@ export default function Dashboard() {
       {selectedTaskId && (
         <TaskDetail
           taskId={selectedTaskId}
-          onClose={() => setSelectedTaskId(null)}
+          onClose={handleCloseTaskDetail}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
         />
