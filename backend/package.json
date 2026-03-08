@@ -4,6 +4,7 @@
   "description": "To Do List API",
   "main": "src/index.js",
   "type": "module",
+  "packageManager": "npm@10.0.0",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
@@ -12,6 +13,7 @@
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
+    "pg": "^8.13.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3"
