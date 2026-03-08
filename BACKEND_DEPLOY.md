@@ -42,7 +42,9 @@ If you haven’t already, push this project to GitHub (see **VERCEL.md** for git
    **Important:** In **Settings → Build & Deploy**, set **Package Manager** to **npm** (not Yarn). The project uses `package-lock.json`.
 
 5. **Environment variables** (required for persistent data):
-   - **`DATABASE_URL`** = your Postgres connection string from Supabase or Neon (e.g. `postgresql://postgres:xxx@db.xxx.supabase.co:5432/postgres`).
+   - **`DATABASE_URL`** = your Postgres connection string.
+     - **Supabase / Neon:** Use the URI they give you (e.g. `postgresql://postgres:xxx@db.xxx.supabase.co:5432/postgres`).
+     - **Render Postgres:** Use the **External** Database URL only (from your Postgres service → **Connect** → **External Database URL**). Do **not** use the Internal URL (host `postgres`) or you’ll get `getaddrinfo ENOTFOUND postgres`.
    - `NODE_ENV` = `production` (optional).
 
    If you omit `DATABASE_URL`, the app uses SQLite and data will **not** persist on Render’s free tier.

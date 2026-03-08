@@ -19,7 +19,7 @@ export async function api(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (res.status === 401) {
     clearToken();
-    throw new Error('Unauthorized');
+    throw new Error('Unauthorized'); // Session invalid or expired; app will redirect to login
   }
   return res;
 }

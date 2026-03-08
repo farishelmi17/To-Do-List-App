@@ -13,11 +13,11 @@ export async function authMiddleware(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await db.get('SELECT id, email, created_at FROM users WHERE id = ?', [payload.userId]);
     if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'User not found. Please sign in again.' });
     }
     req.user = user;
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid or expired token. Please sign in again.' });
   }
 }

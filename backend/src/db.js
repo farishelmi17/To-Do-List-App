@@ -15,9 +15,14 @@ let sqliteDb = null;
 
 if (process.env.DATABASE_URL) {
   dbMode = 'pg';
+  const url = process.env.DATABASE_URL;
+  if (/@postgres([:\/]|$)/i.test(url)) {
+    console.error('DATABASE_URL uses host "postgres" (Render Internal URL).');
+    console.error('Use the External Database URL instead: Render Postgres → Connect → External Database URL.');
+    process.exit(1);
+  }
   const pg = await import('pg');
   const { Pool } = pg.default;
-  const url = process.env.DATABASE_URL;
   pgPool = new Pool({
     connectionString: url,
     ssl: url && !url.includes('localhost') ? { rejectUnauthorized: false } : false,
@@ -155,6 +160,14 @@ const db = {
   },
 };
 
-await initSchema();
+try {
+  await initSchema();
+} catch (err) {
+  if (err.code === 'ENOTFOUND' && err.hostname === 'postgres') {
+    console.error('Could not resolve host "postgres". Use the External Database URL (not Internal) for DATABASE_URL.');
+    console.error('Render: Postgres service → Connect → External Database URL.');
+  }
+  throw err;
+}
 export default db;
 export { dbMode };
